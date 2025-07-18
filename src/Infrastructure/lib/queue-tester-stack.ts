@@ -4,6 +4,8 @@ import * as sqs from 'aws-cdk-lib/aws-sqs';
 import * as kms from 'aws-cdk-lib/aws-kms';
 import * as dotnet from '@aws-cdk/aws-lambda-dotnet';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
+import * as apiGatewayV2 from 'aws-cdk-lib/aws-apigatewayv2';
+import * as integrations from 'aws-cdk-lib/aws-apigatewayv2-integrations';
 import {SqsEventSource} from "aws-cdk-lib/aws-lambda-event-sources";
 
 export class QueueTesterStack extends cdk.Stack {
@@ -18,6 +20,7 @@ export class QueueTesterStack extends cdk.Stack {
       enforceSSL: true,
       encryption: sqs.QueueEncryption.KMS,
       encryptionMasterKey: queueKey,
+      visibilityTimeout: cdk.Duration.seconds(120)
     });
     
     const readerLambda = new dotnet.DotNetFunction(this, 'ReaderLambda', {
@@ -39,5 +42,20 @@ export class QueueTesterStack extends cdk.Stack {
     readerLambda.addEventSource(new SqsEventSource(queue, {
       batchSize: 10,
     }))
+    
+    const api = new apiGatewayV2.HttpApi(this, 'QueueTesterApi', {
+      apiName: 'dotnet Queue Tester Service',
+      description: 'This service serves queue testing functionality.'
+    });
+    
+    const writerIntegration = new integrations.HttpLambdaIntegration('WriterIntegration', writerLambda);
+    
+    api.addRoutes({
+      path: '/write',
+      methods: [apiGatewayV2.HttpMethod.POST],
+      integration: writerIntegration
+    });
+    
+    new cdk.CfnOutput(this, 'ApiUrl', {value: api.apiEndpoint});
   }
 }

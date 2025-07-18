@@ -7,11 +7,6 @@ using Amazon.Lambda.SQSEvents;
 
 namespace ReaderLambda;
 
-public class Foo
-{
-    public string Name { get; set; } = string.Empty;
-}
-
 public class Function
 {
     /// <summary>
@@ -24,9 +19,9 @@ public class Function
     {
         foreach (var record in sqsEvent.Records)
         {
-            context.Logger.LogInformation($"Message received from queue ID: {record.MessageId}");
-            var messageBody = JsonSerializer.Deserialize<Foo>(record.Body);
-            context.Logger.LogInformation($"Processing message: {messageBody?.Name}");
+            context.Logger.LogInformation($"Message received from queue: {record.MessageId}");
+            // var message = JsonSerializer.Deserialize<Domain.Message>(record.Body);
+            context.Logger.LogInformation($"Processing message: {record.Body}");
         }
     }
 }
