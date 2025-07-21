@@ -1,7 +1,7 @@
 using System.Text.Json;
 using Amazon.Lambda.Core;
-using Amazon.SQS;
-using Amazon.SQS.Model;
+using Amazon.SimpleNotificationService;
+using Amazon.SimpleNotificationService.Model;
 using Amazon.Lambda.APIGatewayEvents;
 
 
@@ -10,11 +10,9 @@ using Amazon.Lambda.APIGatewayEvents;
 
 namespace WriterLambda;
 
-public class Function(IAmazonSQS sqsClient)
+public class Function(IAmazonSimpleNotificationService snsClient)
 {
-    public Function() : this(new AmazonSQSClient())
-    {
-    }
+    public Function() : this(new AmazonSimpleNotificationServiceClient()) {}
 
     /// <summary>
     /// Lambda function that writes a message to an SQS queue
@@ -24,12 +22,12 @@ public class Function(IAmazonSQS sqsClient)
     /// <returns></returns>
     public async Task<APIGatewayHttpApiV2ProxyResponse> FunctionHandler(APIGatewayHttpApiV2ProxyRequest request, ILambdaContext context)
     {
-        var queueUrl = Environment.GetEnvironmentVariable("QUEUE_URL");
-        context.Logger.LogInformation($"Queue URL: {queueUrl}");
+        var topicArn = Environment.GetEnvironmentVariable("TOPIC_ARN");
+        context.Logger.LogInformation($"Topic ARN: {topicArn}");
         
         context.Logger.LogInformation($"Message: {request.Body}");
         
-        if (string.IsNullOrEmpty(queueUrl))
+        if (string.IsNullOrEmpty(topicArn))
         {
             throw new InvalidOperationException("QUEUE_URL environment variable is not set");
         }
@@ -39,15 +37,15 @@ public class Function(IAmazonSQS sqsClient)
             PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower
         };
         var message = JsonSerializer.Deserialize<Domain.Message>(request.Body, options: jsonOptions);
-        var sendMessageRequest = new SendMessageRequest
+        var sendMessageRequest = new PublishRequest
         {
-            QueueUrl = queueUrl,
-            MessageBody = JsonSerializer.Serialize(message),
+            TopicArn = topicArn,
+            Message = JsonSerializer.Serialize(message),
             MessageGroupId = Guid.NewGuid().ToString(),
             MessageDeduplicationId = Guid.NewGuid().ToString()
         };
 
-        var response = await sqsClient.SendMessageAsync(sendMessageRequest);
+        var response = await snsClient.PublishAsync(sendMessageRequest);
         
         context.Logger.LogInformation($"Body {message.Body}");
         context.Logger.LogInformation($"Message sent to queue. MessageId: {response.MessageId}");
