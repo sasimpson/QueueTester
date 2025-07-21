@@ -47,7 +47,7 @@ export class QueueTesterStack extends cdk.Stack {
     const writerLambda = new dotnet.DotNetFunction(this, 'WriterLambda', {
       projectDir: '../../src/WriterLambda',
       loggingFormat: lambda.LoggingFormat.JSON,
-      environment: {["QUEUE_URL"]: queue.queueUrl},
+      environment: {["TOPIC_ARN"]: topic.topicArn},
       timeout: cdk.Duration.seconds(60)
     })
 
